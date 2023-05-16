@@ -1,82 +1,161 @@
-import tkinter as tk
 import ply.lex as lex
+import re
 
+
+# Definir las palabras reservadas
 reserved = {
-   'for' : 'FOR',
-   'do' : 'DO',
-   'while' : 'WHILE',
-   'if' : 'IF',
-   'else' : 'ELSE',
+    'int': 'Reservada',
+    'function': 'Reservada',
+    'read': 'Reservada',
+    'printf': 'Reservada',
+    'program': 'Reservada'
 }
 
-tokens = ['ParentecisA','ParentecisC',] + list(reserved.values())
+# Lista de tokens
+tokens = [
+    'ID',
+    'NUMERO',
+    'LPAREN',
+    'RPAREN',
+    'COMMA',
+    'COLON',
+    'LBRACE',
+    'RBRACE',
+    'Punto_coma',
+    'STRING',
+    'SUMA',
+    'IGUAL',
+] + list(reserved.values())
 
-# Regular expression rules for simple tokens
+# Expresiones regulares para los tokens simples
+t_LPAREN = r'\('
+t_RPAREN = r'\)'
+t_COMMA = r','
+t_COLON = r':'
+t_LBRACE = r'\{'
+t_RBRACE = r'\}'
+t_Punto_coma = r';'
+t_SUMA = r'\+'
+t_IGUAL = r'='
 
-t_FOR   = r'\bfor\b'
-t_DO   = r'\bdo\b'
-t_WHILE   = r'\bwhile\b'
-t_IF   = r'\bif\b'
-t_ELSE   = r'\belse\b'
-t_ParentecisA  = r'\('
-t_ParentecisC  = r'\)'
-t_ignore  = ' \t'
+# Expresiones regulares con acciones para los tokens más complejos
+def t_ID(t):
+    r'[a-zA-Z_][a-zA-Z_0-9]*'
+    t.type = reserved.get(t.value, 'ID')
+    return t
 
-# se define una regla para detectar las lineas 
-def t_newline(t):
-    r'\n+'
-    t.lexer.lineno += len(t.value)
+def t_NUMERO(t):
+    r'\d+'
+    t.value = int(t.value)
+    return t
 
+def t_STRING(t):
+    r'"([^"\\]*(?:\\.[^"\\]*)*)"'
+    t.value = t.value[1:-1]  # Eliminar las comillas alrededor de la cadena
+    return t
 
-# detecta elementos que no son los tokens
+# Ignorar espacios y saltos de línea
+t_ignore = ' \n'
+
+# Manejo de errores
 def t_error(t):
-    print("Illegal character '%s'" % t.value[0])
-    text_output.insert(tk.END, "Illegal character '%s'" % t.value[0]  + "\n")
+    print(f'Error: Carácter inesperado "{t.value[0]}"')
     t.lexer.skip(1)
 
+# Construir el lexer
+lexer = lex.lex()
 
-# Crear la ventana principal
-root = tk.Tk()
-root.geometry("800x600")
-root.configure(bg="#303030") 
-
-# Crear los widgets
-label_input = tk.Label(root, text="Ingresa los datos:", fg="white", bg="#303030",font=("Arial", 16))
-label_input.grid(row=0, column=0, pady=50, padx=50)
-
-text_output_into = tk.Text(root, width=20, height=10, bg="white", fg="black")
-text_output_into.grid(row=1, column=0, pady=10, padx=20)
-
-text_output = tk.Text(root, width=50, height=10, bg="white", fg="black")
-text_output.grid(row=1, column=1, pady=10, padx=50)
-
-button = tk.Button(root, text="Obtener datos", bg="#00FF00", fg="black",font=("Arial", 10))
-button.grid(row=2, column=0, pady=50)
-
-clear_button = tk.Button(root, text="Limpiar cuadro de texto", bg="#FF0000", fg="black",font=("Arial", 10))
-clear_button.grid(row=2, column=1, pady=50, padx=10)
-
-def limpiar_texto():
-    text_output.delete("1.0", tk.END)
-
-
-def obtener_datos():
-    lexer = lex.lex()
-    resultados = text_output_into.get("1.0", "end-1c") 
-
-    data = resultados
-
+# Ejemplo de uso
+def tokenize(data):
     lexer.input(data)
-
     while True:
-        tok = lexer.token()
-        if not tok:
-            break      
-        text_output.insert(tk.END, str(tok) + "\n")
-  
-    
+        token = lexer.token()
+        if not token:
+            break
+        if token.type == 'STRING':
+            print(f'String encontrado: {token.value}')
+        else:
+            print(token)
 
-button.config(command=obtener_datos)
-clear_button.config(command=limpiar_texto)
+# Código de ejemplo
+data = '''
+function name() {
+    int a, b, c;
+    read a;
+    printf("hola mundo");
+}
+'''
 
-root.mainloop()
+# Encontrar la función utilizando una expresión regular completa
+def find_function(data):
+    function_regex = r'program\s+\w+\s*\(\s*\)\s*{[\s\S]*?}'
+    matches = re.findall(function_regex, data)
+    if matches:
+        for match in matches:
+            print(f'Función encontrada: {match}')
+    else:
+        print('No se encontró ninguna función.')
+
+# Encontrar declaraciones de variables int en el código fuente
+def find_int_declarations(data):
+    int_declaration_regex = r'int\s+(\w+(?:,\s*\w+)*)(?:\s*:\s*\w+)?\s*;'
+    matches = re.findall(int_declaration_regex, data)
+    if matches:
+        for match in matches:
+            print(f'Declaración de variables int encontrada: {match}')
+    else:
+        print('No se encontró ninguna declaración de variables int.')
+
+# Tokenizar el código fuente e imprimir los tokens
+tokenize(data)
+
+# Encontrar la función y declaraciones de variables int en el código fuente
+find_function(data)
+find_int_declarations(data)
+
+
+import tkinter as tk
+from tkinter import ttk
+
+# Crear ventana principal
+window = tk.Tk()
+window.title("Clasificación de Tokens")
+
+# Crear tabla
+table = ttk.Treeview(window, columns=("Token", "Clasificación"), show="headings")
+table.heading("Token", text="Token")
+table.heading("Clasificación", text="Clasificación")
+table.pack(padx=10, pady=10)
+
+# Función para clasificar los tokens
+def classify_tokens():
+    # Obtener el texto ingresado por el usuario
+    data = text_input.get("1.0", "end").strip()
+
+    # Limpiar la tabla
+    table.delete(*table.get_children())
+
+    # Clasificar los tokens y mostrarlos en la tabla
+    lexer.input(data)
+    while True:
+        token = lexer.token()
+        if not token:
+            break
+        table.insert("", "end", values=(token.value, token.type))
+
+# Etiqueta y cuadro de texto para ingresar el código fuente
+label = tk.Label(window, text="Ingrese el código fuente:")
+label.pack(padx=10, pady=5)
+
+text_input = tk.Text(window, height=10, width=40)
+text_input.pack(padx=10, pady=5)
+
+# Botón para clasificar los tokens
+classify_button = tk.Button(window, text="Clasificar Tokens", command=classify_tokens)
+classify_button.pack(padx=10, pady=5)
+
+# Construir el lexer
+lexer = lex.lex()
+
+# Ejecutar la interfaz gráfica
+window.mainloop()
